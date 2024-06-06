@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io' as io;
+import 'dart:isolate';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -93,6 +94,13 @@ class PatrolBinding extends LiveTestWidgetsFlutterBinding {
       final nameOfRequestedTest = await patrolAppService.testExecutionRequested;
 
       if (nameOfRequestedTest == _currentDartTest) {
+        // TODO: Add coverage collection here
+        logger('Time to collect coverage');
+        Isolate.current.pause();
+        logger('Waiting!');
+        await Future<void>.delayed(Duration.zero);
+        logger('Paused isolate');
+
         logger(
           'finished test $_currentDartTest. Will report its status back to the native side',
         );
@@ -108,6 +116,7 @@ class PatrolBinding extends LiveTestWidgetsFlutterBinding {
               ? (_testResults[_currentDartTest!] as Failure?)?.details
               : null,
         );
+        logger('Async action executed');
       } else {
         logger(
           'finished test $_currentDartTest, but it was not requested, so its status will not be reported back to the native side',
