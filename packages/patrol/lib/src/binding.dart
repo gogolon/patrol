@@ -145,21 +145,15 @@ class PatrolBinding extends LiveTestWidgetsFlutterBinding {
         //   },
         // );
 
-        // final capability = Capability();
-        // final mainIsolate = Isolate.current;
-        //
-        // Isolate.spawn((message) { }, '',);
-        bool stopped = true;
-        registerExtension('ext.patrol.resume', (method, parameters) async {
-          print("Resume called");
-          stopped = false;
+        final mainIsolate = Isolate.current;
 
-          return ServiceExtensionResponse.result(jsonEncode({}));
-        });
+        await Isolate.spawn(
+          otherIsolate,
+          mainIsolate,
+        );
 
         logger('Waiting!');
         await Future<void>.delayed(Duration.zero);
-        logger('Paused isolate');
 
         logger(
           'finished test $_currentDartTest. Will report its status back to the native side',
@@ -376,5 +370,21 @@ class Failure {
       failure['methodName'] as String,
       failure['details'] as String?,
     );
+  }
+}
+
+Future<void> otherIsolate(Isolate mainIsolate) async {
+  final capability = mainIsolate.pause();
+  print('Paused main isolate');
+
+  registerExtension('ext.patrol.resume', (method, parameters) async {
+    mainIsolate.resume(capability);
+    print('Resumed main isolate');
+
+    return ServiceExtensionResponse.result(jsonEncode({}));
+  });
+
+  while (true) {
+    await Future.delayed(Duration(seconds:1));
   }
 }
