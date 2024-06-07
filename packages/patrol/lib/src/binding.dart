@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer';
 import 'dart:io' as io;
 import 'dart:isolate';
 
@@ -96,7 +97,66 @@ class PatrolBinding extends LiveTestWidgetsFlutterBinding {
       if (nameOfRequestedTest == _currentDartTest) {
         // TODO: Add coverage collection here
         logger('Time to collect coverage');
-        Isolate.current.pause();
+
+        // Isolate.run(() async {});
+
+        // Save reference to current isolate then start in in new isolate
+        // when dart vm message is sent
+
+        // final mainIsolate = Isolate.current;
+
+        // await Isolate.spawnUri(
+        //   (message) async {
+        //     print('Pausing from helper isolate');
+        //     final capability = mainIsolate.pause();
+        //
+        //     for (int i = 0; i < 5; ++i) {
+        //       await Future<void>.delayed(Duration(seconds: 1));
+        //     }
+        //
+        //     print('Resuming main isolate from helper isolate!');
+        //     mainIsolate.resume(capability);
+        //
+        //     while (true) {
+        //       print('Spawned isolate!');
+        //       await Future<void>.delayed(Duration(seconds: 1));
+        //     }
+        //   },
+        //   123,
+        // );
+
+        // Isolate.current.pause();
+
+        // final x = await compute(
+        //   (message) {
+        //     Isolate.current.pause();
+        //
+        //     return 2;
+        //   },
+        //   'dummyIsolate',
+        // );
+
+        // final x = await Isolate.run(
+        //   () async {
+        //     Isolate.current.pause();
+        //     await Future<void>.delayed(Duration.zero);
+        //
+        //     return 2;
+        //   },
+        // );
+
+        // final capability = Capability();
+        // final mainIsolate = Isolate.current;
+        //
+        // Isolate.spawn((message) { }, '',);
+        bool stopped = true;
+        registerExtension('ext.patrol.resume', (method, parameters) async {
+          print("Resume called");
+          stopped = false;
+
+          return ServiceExtensionResponse.result(jsonEncode({}));
+        });
+
         logger('Waiting!');
         await Future<void>.delayed(Duration.zero);
         logger('Paused isolate');
