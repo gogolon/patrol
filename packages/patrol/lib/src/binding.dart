@@ -100,7 +100,10 @@ class PatrolBinding extends LiveTestWidgetsFlutterBinding {
 
         logger('Waiting!');
 
-        bool stopped = true;
+        print('Has listener: $extensionStreamHasListener');
+        postEvent('waitForCoverageCollection', {});
+
+        var stopped = true;
 
         registerExtension('ext.patrol.markTestCompleted',
             (method, parameters) async {
