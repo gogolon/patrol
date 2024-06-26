@@ -95,44 +95,38 @@ class PatrolBinding extends LiveTestWidgetsFlutterBinding {
       final nameOfRequestedTest = await patrolAppService.testExecutionRequested;
 
       if (nameOfRequestedTest == _currentDartTest) {
-        // TODO: Add coverage collection here
-        logger('Time to collect coverage');
+        if (const bool.fromEnvironment('COVERAGE_ENABLED')) {
+          postEvent('waitForCoverageCollection', {});
 
-        logger('Waiting!');
+          var stopped = true;
 
-        print('Has listener: $extensionStreamHasListener');
-        postEvent('waitForCoverageCollection', {});
+          registerExtension('ext.patrol.markTestCompleted',
+              (method, parameters) async {
+            stopped = false;
+            return ServiceExtensionResponse.result(jsonEncode({}));
+          });
 
-        var stopped = true;
-
-        registerExtension('ext.patrol.markTestCompleted',
-            (method, parameters) async {
-          logger(
-            'finished test $_currentDartTest. Will report its status back to the native side',
-          );
-
-          final passed = global_state.isCurrentTestPassing;
-          logger(
-            'tearDown(): test "$testName" in group "$_currentDartTest", passed: $passed',
-          );
-
-          await patrolAppService.markDartTestAsCompleted(
-            dartFileName: _currentDartTest!,
-            passed: passed,
-            details: _testResults[_currentDartTest!] is Failure
-                ? (_testResults[_currentDartTest!] as Failure?)?.details
-                : null,
-          );
-          logger('Async action executed');
-
-          stopped = false;
-          return ServiceExtensionResponse.result(jsonEncode({}));
-        });
-
-        while (stopped) {
-          print('Alive');
-          await Future.delayed(Duration(seconds: 1));
+          while (stopped) {
+            await Future<void>.delayed(const Duration(seconds: 1));
+          }
         }
+
+        logger(
+          'finished test $_currentDartTest. Will report its status back to the native side',
+        );
+
+        final passed = global_state.isCurrentTestPassing;
+        logger(
+          'tearDown(): test "$testName" in group "$_currentDartTest", passed: $passed',
+        );
+
+        await patrolAppService.markDartTestAsCompleted(
+          dartFileName: _currentDartTest!,
+          passed: passed,
+          details: _testResults[_currentDartTest!] is Failure
+              ? (_testResults[_currentDartTest!] as Failure?)?.details
+              : null,
+        );
       } else {
         logger(
           'finished test $_currentDartTest, but it was not requested, so its status will not be reported back to the native side',
