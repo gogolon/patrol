@@ -4,7 +4,7 @@ import 'dart:io';
 
 import 'package:coverage/coverage.dart';
 import 'package:path/path.dart' as p;
-import 'package:platform/platform.dart';
+import 'package:patrol_cli/src/devices.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
@@ -83,8 +83,16 @@ Future<Map<String, HitMap>> collectCoverage(
 Future<void> runCodeCoverage({
   required int testCount,
   required Directory packageDirectory,
+  required TargetPlatform platform,
 }) async {
-  final logsProcess = await Process.start('flutter', ['logs']);
+  final homeDirectory =
+      Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+
+  final logsProcess = await Process.start(
+    'flutter',
+    ['logs'],
+    workingDirectory: homeDirectory,
+  );
   final vmRegex = RegExp('listening on (http.+)');
 
   final hitmap = <String, HitMap>{};
@@ -95,7 +103,6 @@ Future<void> runCodeCoverage({
 
   logsSubscription = logsProcess.stdout.transform(utf8.decoder).listen(
     (line) async {
-      // print(line);
       final vmLink = vmRegex.firstMatch(line)?.group(1);
 
       if (vmLink == null || ++count == 1) {
@@ -106,20 +113,28 @@ Future<void> runCodeCoverage({
       final port = RegExp(':([0-9]+)/').firstMatch(vmLink)!.group(1)!;
       final auth = RegExp(':$port/(.+)').firstMatch(vmLink)!.group(1);
 
-      await forwardPort('61011', port);
+      final String? hostPort;
 
-      final forwardList = await Process.run('adb', ['forward', '--list']);
-      final output = forwardList.stdout as String;
-      print('adb forward list: $output');
+      switch (platform) {
+        case TargetPlatform.android:
+          await forwardPort('61011', port);
 
-      // It might be necessary to grab the port from adb forward --list because
-      // if debugger was attached, the port might be different from the one we set
-      if (RegExp('tcp:([0-9]+) tcp:$port').firstMatch(output)
-          case final match?) {
-        final hostPort = match.group(1)!;
+          // It might be necessary to grab the port from adb forward --list because
+          // if debugger was attached, the port might be different from the one we set
+          final forwardList = await Process.run('adb', ['forward', '--list']);
+          final output = forwardList.stdout as String;
+          print('adb forward list: $output');
+          hostPort =
+              RegExp('tcp:([0-9]+) tcp:$port').firstMatch(output)?.group(1);
+        case TargetPlatform.iOS || TargetPlatform.macOS:
+          hostPort = port;
+        default:
+          hostPort = null;
+      }
 
-        print('Host port: $hostPort, auth $auth');
+      print('Host port: $hostPort, auth $auth');
 
+      if (hostPort != null) {
         collectUri = 'http://127.0.0.1:$hostPort/$auth';
         final uri = Uri.parse(collectUri!); // TODO: Do not use !
         final pathSegments =

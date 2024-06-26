@@ -226,6 +226,7 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
       await runCodeCoverage(
         testCount: targets.length,
         packageDirectory: _packageDirectory,
+        platform: device.targetPlatform,
       );
     }
 
