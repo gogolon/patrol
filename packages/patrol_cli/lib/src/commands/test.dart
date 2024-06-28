@@ -228,6 +228,7 @@ See https://github.com/leancodepl/patrol/issues/1316 to learn more.
         flutterPackageName: config.flutterPackageName,
         flutterPackageDirectory: _packageDirectory,
         platform: device.targetPlatform,
+        logger: _logger,
       );
     }
 

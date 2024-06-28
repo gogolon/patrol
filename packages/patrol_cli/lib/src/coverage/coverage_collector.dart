@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:coverage/coverage.dart';
+import 'package:patrol_cli/src/base/logger.dart';
 import 'package:patrol_cli/src/devices.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
@@ -17,14 +18,16 @@ Future<Map<String, HitMap>> collectCoverage(
   VmService client,
   Uri vmUri,
   String packageName,
+  String mainIsolateId,
+  Logger logger,
 ) async {
   final vm = await client.getVM();
 
   for (final isolate in vm.isolates!) {
     try {
       await client.pause(isolate.id!);
-    } catch (e) {
-      print(e);
+    } catch (err) {
+      logger.err('$err');
     }
   }
 
@@ -45,32 +48,31 @@ Future<Map<String, HitMap>> collectCoverage(
   for (final isolate in vm.isolates!) {
     try {
       await client.resume(isolate.id!);
-    } catch (e) {
-      print(e);
+    } catch (err) {
+      logger.err('$err');
     }
   }
 
-  // TODO: only send to main isolate
-  vm.isolates?.forEach((isolate) async {
-    if (isolate.id case final id?) {
-      try {
-        final socket = await WebSocket.connect(client.wsUri!);
-        socket.add(
-          jsonEncode(
-            {
-              'jsonrpc': '2.0',
-              'id': 21,
-              'method': 'ext.patrol.markTestCompleted',
-              'params': {'isolateId': id, 'command': 'markTestCompleted'},
-            },
-          ),
-        );
-        await socket.close();
-      } catch (e) {
-        print(e);
-      }
-    }
-  });
+  try {
+    final socket = await WebSocket.connect(client.wsUri!);
+    socket.add(
+      jsonEncode(
+        {
+          'jsonrpc': '2.0',
+          'id': 21,
+          'method': 'ext.patrol.markTestCompleted',
+          'params': {
+            'isolateId': mainIsolateId,
+            'command': 'markTestCompleted',
+          },
+        },
+      ),
+    );
+
+    await socket.close();
+  } catch (err) {
+    logger.err('$err');
+  }
 
   return HitMap.parseJson(coverage['coverage'] as List<Map<String, dynamic>>);
 }
@@ -80,6 +82,7 @@ Future<void> runCodeCoverage({
   required String flutterPackageName,
   required Directory flutterPackageDirectory,
   required TargetPlatform platform,
+  required Logger logger,
 }) async {
   final homeDirectory =
       Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
@@ -95,9 +98,7 @@ Future<void> runCodeCoverage({
   String? collectUri;
   var count = 0;
 
-  StreamSubscription<String>? logsSubscription;
-
-  logsSubscription = logsProcess.stdout.transform(utf8.decoder).listen(
+  logsProcess.stdout.transform(utf8.decoder).listen(
     (line) async {
       final vmLink = vmRegex.firstMatch(line)?.group(1);
 
@@ -147,16 +148,18 @@ Future<void> runCodeCoverage({
                   serviceClient,
                   uri,
                   flutterPackageName,
+                  event.extensionData!.data['mainIsolateId'] as String,
+                  logger,
                 ),
               );
               await serviceClient.dispose();
 
-              print('Collected ${count - 1} / $testCount coverages');
+              logger.info('Collected ${count - 1} / $testCount coverages');
 
               if (count - 1 == testCount) {
                 logsProcess.kill();
 
-                print('All coverage gathered, saving');
+                logger.info('All coverage gathered, saving');
                 final formatted = hitmap.formatLcov(
                   await Resolver.create(
                     packagePath: flutterPackageDirectory.path,
@@ -177,7 +180,7 @@ Future<void> runCodeCoverage({
           },
         );
       } else {
-        print('Port forwarding failed');
+        logger.err('Port forwarding failed');
       }
     },
   );
