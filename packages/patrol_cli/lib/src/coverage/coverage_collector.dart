@@ -3,13 +3,12 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:coverage/coverage.dart';
-import 'package:path/path.dart' as p;
 import 'package:patrol_cli/src/devices.dart';
 import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
 Future<ProcessResult> forwardPort(String host, String guest) async {
-  print('Forwarding port $host to $guest');
+  // print('Forwarding port $host to $guest');
 
   return Process.run('adb', ['forward', 'tcp:$host', 'tcp:$guest']);
 }
@@ -40,10 +39,6 @@ Future<Map<String, HitMap>> collectCoverage(
     false,
     {packageName},
   );
-
-  print('Restrincting to $packageName');
-
-  print("Collected!");
 
   // TODO: Check if it's possible that the isolates have not been paused yet
   // and they get paused after `resume` requests or is it a queue
@@ -82,7 +77,8 @@ Future<Map<String, HitMap>> collectCoverage(
 
 Future<void> runCodeCoverage({
   required int testCount,
-  required Directory packageDirectory,
+  required String flutterPackageName,
+  required Directory flutterPackageDirectory,
   required TargetPlatform platform,
 }) async {
   final homeDirectory =
@@ -123,7 +119,6 @@ Future<void> runCodeCoverage({
           // if debugger was attached, the port might be different from the one we set
           final forwardList = await Process.run('adb', ['forward', '--list']);
           final output = forwardList.stdout as String;
-          print('adb forward list: $output');
           hostPort =
               RegExp('tcp:([0-9]+) tcp:$port').firstMatch(output)?.group(1);
         case TargetPlatform.iOS || TargetPlatform.macOS:
@@ -131,8 +126,6 @@ Future<void> runCodeCoverage({
         default:
           hostPort = null;
       }
-
-      print('Host port: $hostPort, auth $auth');
 
       if (hostPort != null) {
         collectUri = 'http://127.0.0.1:$hostPort/$auth';
@@ -153,18 +146,21 @@ Future<void> runCodeCoverage({
                 await collectCoverage(
                   serviceClient,
                   uri,
-                  p.split(packageDirectory.path).last,
+                  flutterPackageName,
                 ),
               );
               await serviceClient.dispose();
 
+              print('Collected ${count - 1} / $testCount coverages');
+
               if (count - 1 == testCount) {
-                // await logsSubscription?.cancel();
                 logsProcess.kill();
 
                 print('All coverage gathered, saving');
                 final formatted = hitmap.formatLcov(
-                  await Resolver.create(packagePath: packageDirectory.path),
+                  await Resolver.create(
+                    packagePath: flutterPackageDirectory.path,
+                  ),
                 );
 
                 final coverageDirectory = Directory('coverage');
