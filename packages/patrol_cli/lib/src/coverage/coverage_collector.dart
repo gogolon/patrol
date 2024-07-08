@@ -29,6 +29,16 @@ Future<Map<String, HitMap>> collectCoverage(
     } catch (err) {
       logger.err('$err');
     }
+
+    print('Version ${await client.getVersion()}');
+    final scripts = await client.getScripts(isolate.id!);
+
+    for (final script in scripts.scripts!) {
+      final uri = Uri.parse(script.uri!);
+      final scope = uri.path.split('/').first;
+
+      print('$uri, scope = $scope');
+    }
   }
 
   // the isolates might not be paused yet (see docs of [serviceClient.pause])
