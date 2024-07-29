@@ -9,8 +9,6 @@ import 'package:vm_service/vm_service.dart';
 import 'package:vm_service/vm_service_io.dart';
 
 Future<ProcessResult> forwardPort(String host, String guest) async {
-  // print('Forwarding port $host to $guest');
-
   return Process.run('adb', ['forward', 'tcp:$host', 'tcp:$guest']);
 }
 
@@ -150,8 +148,6 @@ Future<void> runCodeCoverage({
 
         serviceClient.onExtensionEvent.listen(
           (event) async {
-            // TODO: Send isolate id through event.data to make it possible
-            // to send the message back to this specific isolate only
             if (event.extensionKind == 'waitForCoverageCollection') {
               hitmap.merge(
                 await collectCoverage(

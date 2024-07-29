@@ -331,19 +331,3 @@ class Failure {
     );
   }
 }
-
-Future<void> otherIsolate(Isolate mainIsolate) async {
-  final capability = mainIsolate.pause();
-  print('Paused main isolate');
-
-  registerExtension('ext.patrol.resume', (method, parameters) async {
-    mainIsolate.resume(capability);
-    print('Resumed main isolate');
-
-    return ServiceExtensionResponse.result(jsonEncode({}));
-  });
-
-  while (true) {
-    await Future.delayed(Duration(seconds: 1));
-  }
-}
