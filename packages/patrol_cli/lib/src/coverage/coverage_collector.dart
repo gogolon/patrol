@@ -28,21 +28,7 @@ Future<Map<String, HitMap>> collectCoverage(
     } catch (err) {
       logger.err('$err');
     }
-
-    // print('Version ${await client.getVersion()}');
-    // final scripts = await client.getScripts(isolate.id!);
-    //
-    // for (final script in scripts.scripts!) {
-    //   final uri = Uri.parse(script.uri!);
-    //   final scope = uri.path.split('/').first;
-    //
-    //   print('$uri, scope = $scope');
-    // }
   }
-
-  // the isolates might not be paused yet (see docs of [serviceClient.pause])
-  // but it most likely doesn't matter (isolates do not need to be paused
-  // to collect coverage successfuly)
 
   final coverage = await collect(
     vmUri,
@@ -52,15 +38,7 @@ Future<Map<String, HitMap>> collectCoverage(
     {packageName},
   );
 
-  // TODO: Check if it's possible that the isolates have not been paused yet
-  // and they get paused after `resume` requests or is it a queue
-  for (final isolate in vm.isolates!) {
-    try {
-      await client.resume(isolate.id!);
-    } catch (err) {
-      logger.err('$err');
-    }
-  }
+  await client.resume(mainIsolateId);
 
   try {
     final socket = await WebSocket.connect(client.wsUri!);
@@ -97,6 +75,7 @@ Future<void> runCodeCoverage({
   required Directory flutterPackageDirectory,
   required TargetPlatform platform,
   required Logger logger,
+  required Set<Glob> ignoreGlobs,
 }) async {
   final homeDirectory =
       Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
@@ -158,14 +137,9 @@ Future<void> runCodeCoverage({
               // This is the initial run that patrol makes to learn the structure of
               // the tests (workaround for https://github.com/dart-lang/test/issues/1998)
               totalTestCount = event.extensionData!.data['testCount'] as int;
-              print('Total test count is $totalTestCount');
             }
 
             if (event.extensionKind == 'waitForCoverageCollection') {
-              if (totalTestCount == null) {
-                // TODO: Handle? this should not happen
-              }
-
               hitmap.merge(
                 await collectCoverage(
                   serviceClient,
@@ -187,9 +161,7 @@ Future<void> runCodeCoverage({
                   await Resolver.create(
                     packagePath: flutterPackageDirectory.path,
                   ),
-                  // TODO: allow passing globs through command line args / yaml
-                  // config
-                  ignoreGlobs: {Glob('**/*.g.dart')},
+                  ignoreGlobs: ignoreGlobs,
                 );
 
                 final coverageDirectory = Directory('coverage');
