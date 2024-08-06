@@ -20,7 +20,7 @@ $ dart pub global activate patrol_cli
    ```console
    $ dart --version
    ```
-
+§
 2. Clone the repo.
 3. Go to `packages/patrol_cli`.
 4. Run `dart pub global activate --source path .`

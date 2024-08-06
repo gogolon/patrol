@@ -12,7 +12,7 @@ screenshots:
     path: screenshots/logo.png
 
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: '>=3.4.0 <4.0.0'
 
 dependencies:
   adb: ^0.3.0
@@ -22,6 +22,7 @@ dependencies:
   cli_completion: ^0.4.0
   collection: ^1.18.0
   coverage: ^1.9.0
+  dds: ^4.2.5
   dispose_scope: ^2.1.0
   equatable: ^2.0.5
   file: ^7.0.0
